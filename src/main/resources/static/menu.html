@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>카페 메뉴 관리</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <h1>카페 메뉴 관리</h1>
+        <p>메뉴 등록, 수정, 판매중지를 관리하는 화면입니다.</p>
+    </div>
+
+    <div class="nav">
+        <a href="/menu.html">메뉴 관리</a>
+        <a href="/order.html">주문 관리</a>
+        <a href="/swagger-ui/index.html" target="_blank">Swagger</a>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>메뉴 등록</h2>
+
+            <div class="form-group">
+                <label>메뉴 이름</label>
+                <input id="name" type="text" placeholder="예: 카라멜마끼아또">
+            </div>
+
+            <div class="form-group">
+                <label>가격</label>
+                <input id="price" type="number" placeholder="예: 5500">
+            </div>
+
+            <div class="form-group">
+                <label>카테고리</label>
+                <input id="category" type="text" placeholder="예: COFFEE">
+            </div>
+
+            <div class="form-group">
+                <label>설명</label>
+                <input id="description" type="text" placeholder="예: 달달한 커피">
+            </div>
+
+            <button onclick="createMenu()">메뉴 등록</button>
+        </div>
+
+        <div class="card">
+            <h2>메뉴 수정</h2>
+
+            <div class="form-group">
+                <label>수정할 메뉴 ID</label>
+                <input id="updateId" type="number" placeholder="예: 1">
+            </div>
+
+            <div class="form-group">
+                <label>새 메뉴 이름</label>
+                <input id="updateName" type="text" placeholder="예: 아이스 아메리카노">
+            </div>
+
+            <div class="form-group">
+                <label>새 가격</label>
+                <input id="updatePrice" type="number" placeholder="예: 4200">
+            </div>
+
+            <div class="form-group">
+                <label>새 카테고리</label>
+                <input id="updateCategory" type="text" placeholder="예: COFFEE">
+            </div>
+
+            <div class="form-group">
+                <label>새 설명</label>
+                <input id="updateDescription" type="text" placeholder="예: 시원한 아메리카노">
+            </div>
+
+            <button onclick="updateMenu()">메뉴 수정</button>
+        </div>
+
+        <div class="card full">
+            <div class="button-row" style="justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin: 0;">메뉴 목록</h2>
+                <button class="secondary" onclick="loadMenus()">새로고침</button>
+            </div>
+
+            <ul id="menuList" class="list"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function createMenu() {
+        const name = document.getElementById("name").value;
+        const price = Number(document.getElementById("price").value);
+        const category = document.getElementById("category").value;
+        const description = document.getElementById("description").value;
+
+        const response = await fetch("/api/menus", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: name,
+                price: price,
+                category: category,
+                description: description
+            })
+        });
+
+        if (response.ok) {
+            alert("메뉴 등록 성공");
+            clearCreateForm();
+            loadMenus();
+        } else {
+            const error = await response.json();
+            alert(error.message || "메뉴 등록 실패");
+        }
+    }
+
+    async function updateMenu() {
+        const id = document.getElementById("updateId").value;
+        const name = document.getElementById("updateName").value;
+        const price = Number(document.getElementById("updatePrice").value);
+        const category = document.getElementById("updateCategory").value;
+        const description = document.getElementById("updateDescription").value;
+
+        const response = await fetch("/api/menus/" + id, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: name,
+                price: price,
+                category: category,
+                description: description
+            })
+        });
+
+        if (response.ok) {
+            alert("메뉴 수정 성공");
+            clearUpdateForm();
+            loadMenus();
+        } else {
+            const error = await response.json();
+            alert(error.message || "메뉴 수정 실패");
+        }
+    }
+
+    async function deleteMenu(id) {
+        const answer = confirm(id + "번 메뉴를 판매중지할까요?");
+
+        if (!answer) {
+            return;
+        }
+
+        const response = await fetch("/api/menus/" + id, {
+            method: "DELETE"
+        });
+
+        if (response.ok) {
+            alert("메뉴 판매중지 성공");
+            loadMenus();
+        } else {
+            const error = await response.json();
+            alert(error.message || "메뉴 판매중지 실패");
+        }
+    }
+
+    async function loadMenus() {
+        const response = await fetch("/api/menus");
+        const menus = await response.json();
+
+        const menuList = document.getElementById("menuList");
+        menuList.innerHTML = "";
+
+        if (menus.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "empty";
+            empty.textContent = "등록된 메뉴가 없습니다.";
+            menuList.appendChild(empty);
+            return;
+        }
+
+        menus.forEach(menu => {
+            const li = document.createElement("li");
+            li.className = "list-item";
+
+            const info = document.createElement("div");
+
+            const title = document.createElement("div");
+            title.className = "item-title";
+            title.textContent = menu.id + "번 " + menu.name;
+
+            const detail = document.createElement("div");
+            detail.className = "item-detail";
+            detail.textContent = menu.price + "원 / " + menu.category + " / " + menu.description;
+
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.textContent = menu.active ? "판매중" : "판매중지";
+
+            info.appendChild(title);
+            info.appendChild(detail);
+            info.appendChild(badge);
+
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "danger";
+            deleteButton.textContent = "판매중지";
+            deleteButton.onclick = function () {
+                deleteMenu(menu.id);
+            };
+
+            li.appendChild(info);
+            li.appendChild(deleteButton);
+            menuList.appendChild(li);
+        });
+    }
+
+    function clearCreateForm() {
+        document.getElementById("name").value = "";
+        document.getElementById("price").value = "";
+        document.getElementById("category").value = "";
+        document.getElementById("description").value = "";
+    }
+
+    function clearUpdateForm() {
+        document.getElementById("updateId").value = "";
+        document.getElementById("updateName").value = "";
+        document.getElementById("updatePrice").value = "";
+        document.getElementById("updateCategory").value = "";
+        document.getElementById("updateDescription").value = "";
+    }
+
+    loadMenus();
+</script>
+</body>
+</html>

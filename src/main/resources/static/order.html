@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>카페 주문 관리</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <h1>카페 주문 관리</h1>
+        <p>주문 생성, 상태 변경, 일별 매출 조회를 관리하는 화면입니다.</p>
+    </div>
+
+    <div class="nav">
+        <a href="/menu.html">메뉴 관리</a>
+        <a href="/order.html">주문 관리</a>
+        <a href="/swagger-ui/index.html" target="_blank">Swagger</a>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>주문 생성</h2>
+
+            <div class="form-group">
+                <label>고객 이름</label>
+                <input id="customerName" type="text" placeholder="예: 김현수">
+            </div>
+
+            <div class="form-group">
+                <label>메뉴 선택</label>
+                <select id="menuSelect"></select>
+            </div>
+
+            <div class="form-group">
+                <label>수량</label>
+                <input id="quantity" type="number" value="1">
+            </div>
+
+            <button onclick="createOrder()">주문 생성</button>
+        </div>
+
+        <div class="card">
+            <h2>주문 상태 변경</h2>
+
+            <div class="form-group">
+                <label>주문 ID</label>
+                <input id="statusOrderId" type="number" placeholder="예: 1">
+            </div>
+
+            <div class="form-group">
+                <label>변경할 상태</label>
+                <select id="orderStatus">
+                    <option value="ORDERED">ORDERED - 주문 접수</option>
+                    <option value="MAKING">MAKING - 제조 중</option>
+                    <option value="COMPLETED">COMPLETED - 완료</option>
+                    <option value="CANCELED">CANCELED - 취소</option>
+                </select>
+            </div>
+
+            <button onclick="updateOrderStatus()">상태 변경</button>
+        </div>
+
+        <div class="card">
+            <h2>일별 매출 조회</h2>
+
+            <div class="form-group">
+                <label>조회 날짜</label>
+                <input id="salesDate" type="date">
+            </div>
+
+            <button onclick="loadDailySales()">매출 조회</button>
+
+            <h3>매출 결과</h3>
+            <pre id="salesResult" class="result-box"></pre>
+        </div>
+
+        <div class="card">
+            <h2>주문 결과</h2>
+            <pre id="orderResult" class="result-box"></pre>
+        </div>
+
+        <div class="card full">
+            <div class="button-row" style="justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin: 0;">주문 목록</h2>
+                <button class="secondary" onclick="loadOrders()">새로고침</button>
+            </div>
+
+            <ul id="orderList" class="list"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadMenus() {
+        const response = await fetch("/api/menus");
+        const menus = await response.json();
+
+        const menuSelect = document.getElementById("menuSelect");
+        menuSelect.innerHTML = "";
+
+        menus.forEach(menu => {
+            const option = document.createElement("option");
+            option.value = menu.id;
+            option.textContent = menu.name + " / " + menu.price + "원";
+            menuSelect.appendChild(option);
+        });
+    }
+
+    async function createOrder() {
+        const customerName = document.getElementById("customerName").value;
+        const menuId = Number(document.getElementById("menuSelect").value);
+        const quantity = Number(document.getElementById("quantity").value);
+
+        const response = await fetch("/api/orders", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                customerName: customerName,
+                items: [
+                    {
+                        menuId: menuId,
+                        quantity: quantity
+                    }
+                ]
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            alert("주문 생성 성공");
+            document.getElementById("orderResult").textContent = JSON.stringify(result, null, 2);
+            clearOrderForm();
+            loadOrders();
+        } else {
+            const error = await response.json();
+            alert(error.message || "주문 생성 실패");
+        }
+    }
+
+    async function updateOrderStatus() {
+        const orderId = document.getElementById("statusOrderId").value;
+        const status = document.getElementById("orderStatus").value;
+
+        const response = await fetch("/api/orders/" + orderId + "/status", {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                status: status
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            alert("주문 상태 변경 성공");
+            document.getElementById("orderResult").textContent = JSON.stringify(result, null, 2);
+            loadOrders();
+        } else {
+            const error = await response.json();
+            alert(error.message || "주문 상태 변경 실패");
+        }
+    }
+
+    async function loadOrders() {
+        const response = await fetch("/api/orders");
+        const orders = await response.json();
+
+        const orderList = document.getElementById("orderList");
+        orderList.innerHTML = "";
+
+        if (orders.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "empty";
+            empty.textContent = "생성된 주문이 없습니다.";
+            orderList.appendChild(empty);
+            return;
+        }
+
+        orders.forEach(order => {
+            const li = document.createElement("li");
+            li.className = "list-item";
+
+            const info = document.createElement("div");
+
+            const title = document.createElement("div");
+            title.className = "item-title";
+            title.textContent = order.id + "번 주문 / 고객: " + order.customerName;
+
+            const detail = document.createElement("div");
+            detail.className = "item-detail";
+            detail.textContent = "총액: " + order.totalPrice + "원 / 주문일시: " + order.orderedAt;
+
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.textContent = order.status;
+
+            info.appendChild(title);
+            info.appendChild(detail);
+            info.appendChild(badge);
+
+            li.appendChild(info);
+            orderList.appendChild(li);
+        });
+    }
+
+    async function loadDailySales() {
+        const date = document.getElementById("salesDate").value;
+
+        if (!date) {
+            alert("날짜를 선택해주세요.");
+            return;
+        }
+
+        const response = await fetch("/api/sales/daily?date=" + date);
+
+        if (response.ok) {
+            const result = await response.json();
+            document.getElementById("salesResult").textContent = JSON.stringify(result, null, 2);
+        } else {
+            const error = await response.json();
+            alert(error.message || "매출 조회 실패");
+        }
+    }
+
+    function clearOrderForm() {
+        document.getElementById("customerName").value = "";
+        document.getElementById("quantity").value = 1;
+    }
+
+    function setTodayDate() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, "0");
+        const day = String(today.getDate()).padStart(2, "0");
+
+        document.getElementById("salesDate").value = year + "-" + month + "-" + day;
+    }
+
+    loadMenus();
+    loadOrders();
+    setTodayDate();
+</script>
+</body>
+</html>
