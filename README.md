@@ -34,6 +34,20 @@ Python과 AI 중심 프로젝트 외에 Java와 Spring Boot 기반 백엔드 개
 * Bean Validation
 * Swagger
 
+## 실행 화면
+
+### 메뉴 관리 화면
+
+![메뉴 관리 화면](docs/images/menu-page.png)
+
+### 주문 관리 화면
+
+![주문 관리 화면](docs/images/order-page.png)
+
+### Swagger API 문서
+
+![Swagger API 문서](docs/images/swagger-page.png)
+
 ## 주요 기능
 
 ### 메뉴 관리
